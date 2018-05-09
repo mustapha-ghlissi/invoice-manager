@@ -1,0 +1,6 @@
+{
+    "require": {
+        "spipu/html2pdf": "^5.1",
+        "swiftmailer/swiftmailer": "^6.0"
+    }
+}
