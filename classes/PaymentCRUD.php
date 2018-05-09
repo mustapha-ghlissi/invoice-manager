@@ -42,6 +42,21 @@ class PaymentCRUD{
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    
+    public function getPaiedAmountByInvoice($invoiceId): ?array
+    {
+        $query = "SELECT SUM(amount) as paiedAmount FROM invoicePayment WHERE invoice = :invoiceId";
+        $stmt = self::$pdo->prepare($query);
+        $stmt->bindParam(':invoiceId', $invoiceId);
+        $stmt->execute();
+        if($stmt->rowCount() === 0)
+        {
+            return null;
+        }
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
     //Save the payment invoice
     public function savePayment(InvoicePayment $invoicePayment): ?string
     {

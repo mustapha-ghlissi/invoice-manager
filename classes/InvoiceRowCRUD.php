@@ -40,6 +40,20 @@ class InvoiceRowCRUD{
         return $stmt->fetchAll(PDO::FETCH_CLASS, "InvoiceGenerator\Entity\InvoiceRow");
     }
 
+    //Get all invoice rows by invoice
+    public function getInvoiceRowsByInvoiceAsArray($invoice): ?array
+    {
+        $query = "SELECT * FROM invoiceRow where invoice = :invoice";
+        $stmt = self::$pdo->prepare($query);
+        $stmt->bindParam(':invoice', $invoice);
+        $stmt->execute();
+        if($stmt->rowCount() === 0)
+        {
+            return null;
+        }
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
 
     //Save the invoice row
     public function saveInvoiceRow(InvoiceRow $invoiceRow): ?string

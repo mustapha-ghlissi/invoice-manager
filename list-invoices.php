@@ -7,19 +7,33 @@ if(isset($_GET['format']))
 {
   require './vendor/autoload.php';
   require './classes/InvoiceCRUD.php';
+  require './classes/InvoiceRowCRUD.php';
+  require './classes/PaymentCRUD.php';
+  $paymentCRUD = new PaymentCRUD();
   $invoiceCRUD = new InvoiceCRUD();
   $invoices = $invoiceCRUD->getInvoices();
+  $invoiceRowCRUD = new InvoiceRowCRUD();
+
   
+  $invoiceRows = [];
+  $data = [];
+  if(is_array($invoices))
+  {
+    foreach($invoices as $key=>$invoice):
+      {
+        $invoiceRows = $invoiceRowCRUD->getInvoiceRowsByInvoiceAsArray($invoice['id']);
+        $paiedAmount = $paymentCRUD->getPaiedAmountByInvoice($invoice['id']);
+        $data[$key] = ['invoice'=>$invoice, 'paiedAmount'=>$paiedAmount, 'invoiceRows'=>$invoiceRows];
+      }endforeach;
+  }
+
   $invoices = [
     "draw" => 1,
     "recordsTotal" => $invoices?count($invoices):0,
     "recordsFiltered" => $invoices?count($invoices):0,
-    "data" => $invoices??[]
+    "data" => $data??[]
   ];
-
-  $invoices = json_encode($invoices);
-  echo $invoices;
-  exit;
+  exit(json_encode($invoices));
 }
 
 if (isset($_GET['paymentInvoiceId']))
@@ -721,6 +735,8 @@ if (isset($_POST['deletePaymentId']))
                   <th>Ref</th>
                   <th>Start date</th>
                   <th>End date</th>
+                  <th>Total</th>
+                  <th>Paied</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -732,6 +748,8 @@ if (isset($_POST['deletePaymentId']))
                   <th>Ref</th>
                   <th>Start date</th>
                   <th>End date</th>
+                  <th>Total</th>
+                  <th>Paied</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1037,7 +1055,7 @@ Config.set('assets', 'template/base/assets');
 <script type="text/javascript">
 $(document).ready(function () {
   function action(data, type, full, meta) {
-    var id = data.id;
+    var id = full.invoice.id;
 
 
 
@@ -1081,18 +1099,27 @@ $(document).ready(function () {
       ],
       "columns": [
         {
-          data: "id"
+          data: "id",
+          render: function ( data, type, row, meta ) {
+            return row.invoice.id;
+          }
         },
         {
-          data: "quote"
+          data: "quote",
+          render: function ( data, type, row, meta ) {
+            return row.invoice.quote;
+          }
         },
         {
-          data: "ref"
+          data: "ref",
+          render: function ( data, type, row, meta ) {
+            return row.invoice.ref;
+          }
         },
         {
           data: "startDate",
           render: function ( data, type, row, meta ) {
-            var date = new Date(data);
+            var date = new Date(row.invoice.startDate);
             var year = date.getFullYear();
             var day = date.getDate()>9?date.getDate():'0'+date.getDate();
             var month = date.getMonth()>9?date.getMonth():'0'+date.getMonth();
@@ -1102,7 +1129,7 @@ $(document).ready(function () {
         {
           data: "endDate",
           render: function ( data, type, row, meta ) {
-            var date = new Date(data);
+            var date = new Date(row.invoice.endDate);
             var year = date.getFullYear();
             var day = date.getDate()>9?date.getDate():'0'+date.getDate();
             var month = date.getMonth()>9?date.getMonth():'0'+date.getMonth();
@@ -1110,19 +1137,41 @@ $(document).ready(function () {
           }
         },
         {
+          render: function ( data, type, row, meta ) {
+            
+            var total = 0, tax, unityPrice, quantity, subtotal;
+
+            for(var i = 0; i < row.invoiceRows.length; i++)
+            {
+              tax = row.invoiceRows[i].tax;
+              unityPrice =  row.invoiceRows[i].unityprice;
+              quantity =  row.invoiceRows[i].quantity;
+              subtotal = parseFloat(unityPrice) * parseInt(quantity);
+              tax = parseFloat((tax * subtotal)/100);
+              total += parseFloat(subtotal + tax);
+            }
+            return  total;
+          }
+        },
+        {
+          render: function ( data, type, row, meta ) {
+            return (row.paiedAmount[0].paiedAmount?row.paiedAmount[0].paiedAmount:"0.00");
+          }
+        },
+        {
           data: "status",
           render: function ( data, type, row, meta ) {
             var status = "", statusColor = "";
-            if(data == 1)
+            if(row.invoice.status == 1)
             {
               status = "Draft";
               statusColor = "danger";
             }
-            else if (data == 2) {
+            else if (row.invoice.status == 2) {
               status = "Sent";
               statusColor = "success";
             }
-            else if (data == 3) {
+            else if (row.invoice.status == 3) {
               status = "Paied";
               statusColor = "primary";
             }

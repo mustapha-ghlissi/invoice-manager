@@ -1466,22 +1466,7 @@ $(document).ready(function(){
     }
   });
 
-var newOption = $("<option></option>").val("<?php echo ($repertory['id']); ?>").text("<?php echo ($repertory['name']); ?>")
-$(".js-data-repertories").append(newOption).trigger('change');
 
-<?php
-  foreach($transformedRows as $i=>$transformedRow):
-  {
-?>
-  var articleOption = $("<option></option>").val("<?php echo ($transformedRow->getId()); ?>").text("<?php echo ($transformedRow->getLabel()); ?>")
-  $("#js-data-articles<?php echo ($i + 1); ?>").append(articleOption).trigger('change');
-  $('#label<?php echo ($i + 1); ?>').val("<?php echo ($transformedRow->getLabel()); ?>");
-
-  var taxOption = $("<option></option>").val("<?php echo ($taxes[$i]['id']); ?>").text("<?php echo ($taxes[$i]['amount']); ?>")
-  $("#js-data-taxes<?php echo ($i + 1); ?>").append(taxOption).trigger('change');
-<?php
-  }endforeach;
-?>
 
 
 $(document).on('change', '.js-data-articles', function(e) {
@@ -1504,6 +1489,31 @@ $('#btn-generate').on('click', function(){
   }
   $('#ref').val(ref);
 });
+
+
+
+
+<?php if(isset($transformedQuote)){ ?>
+
+var newOption = $("<option></option>").val("<?php echo ($repertory['id']); ?>").text("<?php echo ($repertory['name']); ?>");
+$(".js-data-repertories").append(newOption).trigger('change');
+
+<?php
+  foreach($transformedRows as $i=>$transformedRow):
+  {
+?>
+  var articleOption = $("<option></option>").val("<?php echo ($transformedRow->getId()); ?>").text("<?php echo ($transformedRow->getLabel()); ?>")
+  $("#js-data-articles<?php echo ($i + 1); ?>").append(articleOption).trigger('change');
+  $('#label<?php echo ($i + 1); ?>').val("<?php echo ($transformedRow->getLabel()); ?>");
+
+  var taxOption = $("<option></option>").val("<?php echo ($taxes[$i]['id']); ?>").text("<?php echo ($taxes[$i]['amount']); ?>")
+  $("#js-data-taxes<?php echo ($i + 1); ?>").append(taxOption).trigger('change');
+<?php
+  }endforeach;
+?>
+
+<?php } ?>
+
 });
 </script>
 </body>
