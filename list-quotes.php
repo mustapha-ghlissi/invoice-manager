@@ -1,20 +1,34 @@
 <?php
 if(isset($_GET['format']))
 {
-  require './classes/QuoteCRUD.php';
-  $quoteCRUD = new QuoteCRUD();
-  $quotes = $quoteCRUD->getQuotes();
+    // DB table to use
+    $table = 'quote';
+    
+    // Table's primary key
+    $primaryKey = 'id';
 
-  $quotes = [
-    "draw" => 1,
-    "recordsTotal" => $quotes?count($quotes):0,
-    "recordsFiltered" => $quotes?count($quotes):0,
-    "data" => $quotes??[]
-  ];
-
-  $quotes = json_encode($quotes);
-  echo $quotes;
-  exit;
+    $columns = array(
+      array( 'db' => 'id', 'dt' => 'id' ),
+      array( 'db' => 'ref', 'dt' => 'ref' ),
+      array( 'db' => 'creationDate',  'dt' => 'creationDate' ),
+      array( 'db' => 'dueDate',   'dt' => 'dueDate' ),
+      array( 'db' => 'status',     'dt' => 'status' ),
+      array( 'db' => 'amount', 'dt'  => 'amount' )
+    );
+    
+    // SQL server connection information
+    $sql_details = array(
+        'user' => 'root',
+        'pass' => '',
+        'db'   => 'invoice-2018',
+        'host' => 'localhost'
+    );
+    
+    require( './classes/SSP.php' );
+    
+    exit(json_encode(
+        SSP::simple( $_POST, $sql_details, $table, $primaryKey, $columns )
+    ));
 }
 
 if(isset($_POST['quoteId']))
@@ -25,9 +39,7 @@ if(isset($_POST['quoteId']))
     $quoteRowCRUD = new QuoteRowCRUD();
     $quoteRowCRUD->deleteQuoteRowByQuote($_POST['quoteId']);
     $message = $quoteCRUD->deleteQuote($_POST['quoteId']);
-    $data = json_encode(array('error'=>false,'message'=>$message));
-    echo $data;
-    exit;
+    exit(json_encode(array('error'=>false,'message'=>$message)));
 }
 
 ?>
@@ -647,12 +659,10 @@ if(isset($_POST['quoteId']))
 
           <header class="panel-heading">
             <h3 class="panel-title">Quote list</h3>
-            <div class="text-right" style="padding-right: 30px; margin-bottom: 20px">
-              <a href="new-quote.php" class="btn btn-primary"><i class="white-600 wb wb-plus"></i> Create new quote</a>
-            </div>
+            
           </header>
           <div class="panel-body">
-            <table class="table table-hover dataTable table-striped w-full" id="dataTable">
+            <table class="table table-hover dataTable table-striped table-bordered w-full" id="dataTable">
               <thead>
                 <tr>
                   <th>Id</th>
@@ -661,21 +671,39 @@ if(isset($_POST['quoteId']))
                   <th>Due date</th>
                   <th>Status</th>
                   <th>Amount</th>
-                  <th>Actions</th>
+                  <th width="10%">Actions</th>
                 </tr>
               </thead>
               <tfoot>
                 <tr>
-                  <th>Id</th>
-                  <th>Ref</th>
-                  <th>Creation date</th>
-                  <th>Due date</th>
-                  <th>Status</th>
-                  <th>Amount</th>
+                  <th>
+                    <input type="text" placeholder="Ref" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Creation date" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Due date" class="form-control form-controlm" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Status" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Amount" class="form-control form-control" style="border: none">
+                  </th>
                   <th>Actions</th>
                 </tr>
+                <tr>
+                  <th colspan="6">
+                    <input type="text" placeholder="Type to search the table" id="customGlobalSearch" class="form-control form-control" style="border: none">
+                  </th>
+                </tr>
               </tfoot>
+
             </table>
+            <div style="padding-right: 30px; margin-bottom: 20px">
+              <a href="new-quote.php" class="btn btn-primary"><i class="white-600 wb wb-plus"></i> Create new quote</a>
+            </div>
           </div>
         </div>
 
@@ -806,6 +834,10 @@ if(isset($_POST['quoteId']))
 <script src="template/global/vendor/datatables.net-buttons/buttons.print.js"></script>
 <script src="template/global/vendor/datatables.net-buttons/buttons.colVis.js"></script>
 <script src="template/global/vendor/datatables.net-buttons-bs4/buttons.bootstrap4.js"></script>
+<script src="template/global/js/Plugin/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.1.36/build/vfs_fonts.js" integrity="sha256-wvH/UThD/fVD6sz1bAWX7JDW5Nx1TBdhegX8IHX20hA=" crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.16/b-1.5.1/b-colvis-1.5.1/b-html5-1.5.1/b-print-1.5.1/r-2.2.1/sl-1.2.5/datatables.min.js"></script>
+
 
 
 
@@ -837,12 +869,11 @@ Config.set('assets', 'template/base/assets');
 <script src="template/base/assets/examples/js/tables/datatable.js"></script>
 
 
-
-
 <script type="text/javascript" src="ajax/crud-quote.js"></script>
 <script type="text/javascript">
 $(document).ready(function () {
   function action(data, type, full, meta) {
+    
     var id = data.id;
     var transform = '';
     if(data.status != 3)
@@ -862,7 +893,7 @@ $(document).ready(function () {
     '<i class="fa fa-fw fa-trash"></i> Delete quotation</a>';
 
     var btnOptions = '<div class="dropdown">'+
-      '<button type="button" class="btn btn-default btn-outline dropdown-toggle" data-toggle="dropdown">Options</button>'+
+      '<button type="button" class="btn btn-default btn-outline btn-sm dropdown-toggle" data-toggle="dropdown">Options</button>'+
       '<div class="dropdown-menu">'+
         actions +
       '</div>'+
@@ -872,16 +903,23 @@ $(document).ready(function () {
     return btnOptions;
   }
 
-  $('#dataTable').DataTable(
+  var dataTable = $('#dataTable').DataTable(
     {
-      "destroy": true,
-      "order": [0, 'asc'],
-      "processing": true,
-      "serverSide": false,
+      "dom": '<"text-center"<"btn-group"B>><"clear"><"row"<"col-md-6"l><"col-md-6 pr0"p>r>t<"row"<"col-md-6"i><"col-md-6"p>><"clear">',
+      "buttons": [
+          { extend: 'copyHtml5', exportOptions: { columns: [ 0, 1, 2, 3, 4, 5 ] } },
+          { extend: 'excelHtml5', 'footer': true, exportOptions: { columns: [ 0, 1, 2, 3, 4, 5 ] } },
+          { extend: 'csvHtml5', 'footer': true, exportOptions: { columns: [ 0, 1, 2, 3, 4, 5 ] } },
+          { extend: 'pdfHtml5', orientation: 'landscape', pageSize: 'A4', 'footer': true, 
+          exportOptions: { columns: [ 0, 1, 2, 3, 4, 5 ] } },
+          { extend: 'colvis', text: 'Columns'},
+      ],
+      "pageLength": 10,
+      "processing": true, 
+      "serverSide": true,
       "ajax": {
         url: "<?php echo $_SERVER['PHP_SELF'] ?>?format=json",
-        type: "GET",
-        dataSrc: 'data'
+        type: "POST"
       },
       "columnDefs": [
         {"orderable": true, "targets": 0}
@@ -944,6 +982,7 @@ $(document).ready(function () {
     $('#deleteModal').modal('toggle');
     var _action = "<?php echo ($_SERVER['PHP_SELF']) ?>";
     deleteQuote($(this), _action);
+    dataTable.ajax.reload();
   });
 
 
@@ -958,6 +997,23 @@ $(document).ready(function () {
     var _action = "send-mail.php";
     sendMail($(this), _action);
   });
+
+  $('#customGlobalSearch').on('keyup', function(){
+    
+    dataTable.search( this.value ).draw();
+  });
+
+  dataTable.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                    .search( this.value )
+                    .draw();
+            }
+        } );
+    } );
 });
 </script>
 </body>

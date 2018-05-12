@@ -27,6 +27,45 @@ class InvoiceCRUD{
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+     //Get all invoices
+     public function getOrderedInvoices(string $orderBy, string $dir, int $start, int $length): ?array
+     {
+         $query = "SELECT * FROM invoice ORDER BY $orderBy $dir LIMIT $start ,$length";
+         $stmt = self::$pdo->prepare($query);
+         $stmt->execute();
+         if($stmt->rowCount() === 0)
+         {
+             return null;
+         }
+         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+     }
+
+    public function getInvoicesByCriteria(string $criteria,string $orderBy, string $dir, int $start, int $length)
+    {
+      $query = "SELECT * FROM invoice where 1=1";
+      $query .= " AND id LIKE :criteria";
+      $query .= " OR repertory LIKE :criteria";
+      $query .= " OR quote LIKE :criteria";
+      $query .= " OR ref LIKE :criteria";
+      $query .= " OR startDate LIKE :criteria";
+      $query .= " OR endDate LIKE :criteria";
+      $query .= " OR status LIKE :criteria"; 
+      $query .= " OR publicnote LIKE :criteria"; 
+      $query .= " OR privatenote LIKE :criteria";
+      $query .= " ORDER BY $orderBy $dir LIMIT $start ,$length";
+      $stmt = self::$pdo->prepare($query);
+
+      $criteria = $criteria.'%';
+      
+      $stmt->bindParam(':criteria',$criteria);
+      $stmt->execute();
+      if($stmt->rowCount() === 0)
+      {
+          return null;
+      }
+      return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getInvoiceByRef(string $ref)
     {
       $query = "SELECT * FROM invoice where ref = :ref LIMIT 1";
@@ -40,6 +79,7 @@ class InvoiceCRUD{
       return $stmt->fetchAll(PDO::FETCH_CLASS, "InvoiceGenerator\Entity\Invoice");
     }
 
+    
     public function getInvoiceByQuote(int $quote)
     {
       $query = "SELECT * FROM invoice where quote = :quote LIMIT 1";

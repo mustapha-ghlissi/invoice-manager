@@ -33,12 +33,12 @@ function editQuote($form,$url) {
         var d = JSON.parse(data);
         alert(d.message);
         if(d.error === false)
-				{
-					window.location.href = './list-quotes.php';
-				}
-				else {
-					return false;
-				}
+        {
+            window.location.href = './list-quotes.php';
+        }
+        else {
+            return false;
+        }
     })
     .fail(function() {
         alert('Update request failed');
@@ -55,8 +55,7 @@ function deleteQuote($form,$url) {
     })
     .done(function(data){
         var d = JSON.parse(data);
-    		alert(d.message);
-				window.location.href = './list-quotes.php';
+    	alert(d.message);
     })
     .fail(function() {
         alert('Delete request failed');

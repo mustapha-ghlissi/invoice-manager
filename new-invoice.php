@@ -14,8 +14,7 @@ use InvoiceGenerator\Entity\Quote;
 use InvoiceGenerator\Entity\QuoteRow;
 use InvoiceGenerator\Entity\InvoicePayment;
 
-
-
+    
 if(isset($_GET['id']))
 {
   $quoteCRUD = new QuoteCRUD();

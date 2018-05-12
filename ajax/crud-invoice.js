@@ -56,8 +56,7 @@ function deleteInvoice($form,$url) {
     })
     .done(function(data){
         var d = JSON.parse(data);
-    		alert(d.message);
-				window.location.href = './list-invoices.php';
+    	alert(d.message);
     })
     .fail(function() {
         alert('Delete request failed');

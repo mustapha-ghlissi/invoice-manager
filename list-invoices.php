@@ -9,29 +9,84 @@ if(isset($_GET['format']))
   require './classes/InvoiceCRUD.php';
   require './classes/InvoiceRowCRUD.php';
   require './classes/PaymentCRUD.php';
+  require './classes/TaxCRUD.php';
+
   $paymentCRUD = new PaymentCRUD();
   $invoiceCRUD = new InvoiceCRUD();
-  $invoices = $invoiceCRUD->getInvoices();
+  $taxCRUD = new TaxCRUD();
   $invoiceRowCRUD = new InvoiceRowCRUD();
 
-  
-  $invoiceRows = [];
+  $col =array(
+      0   =>  'id',
+      1   =>  'repertory',
+      2   =>  'quote',
+      3   =>  'ref',
+      4   =>  'quote',
+      5   =>  'startDate',
+      6   =>  'endDate',
+      7   =>  'status',
+      8   =>  'publicnote',
+      9   =>  'privatenote'
+  );  //create column like table in database
+
+  $invoices = $invoiceCRUD->getInvoices();
+  $recordsTotal = is_array($invoices)?count($invoices):0;
+
+  $invoices = $invoiceCRUD->getOrderedInvoices($col[$_POST['order'][0]['column']], $_POST['order'][0]['dir'], $_POST['start'], $_POST['length']);
+
+  $taxes = [];
   $data = [];
+
   if(is_array($invoices))
   {
     foreach($invoices as $key=>$invoice):
       {
         $invoiceRows = $invoiceRowCRUD->getInvoiceRowsByInvoiceAsArray($invoice['id']);
         $paiedAmount = $paymentCRUD->getPaiedAmountByInvoice($invoice['id']);
-        $data[$key] = ['invoice'=>$invoice, 'paiedAmount'=>$paiedAmount, 'invoiceRows'=>$invoiceRows];
+        foreach($invoiceRows as $invoiceRow):
+        {
+          $tax = $taxCRUD->getTaxById($invoiceRow['tax'])[0];
+          array_push($taxes, $tax);
+        }endforeach;
+
+        $data[$key] = ['invoice'=>$invoice, 'paiedAmount'=>$paiedAmount, 'invoiceRows'=>$invoiceRows, 'taxes'=>$taxes];
       }endforeach;
   }
 
+  //Search
+  if(!empty($_POST['search']['value'])){
+      $invoices = $invoiceCRUD->getInvoicesByCriteria(
+        $_POST['search']['value'],
+        $col[$_POST['order'][0]['column']], 
+        $_POST['order'][0]['dir'], 
+        $_POST['start'], 
+        $_POST['length']
+      );
+      $taxes = [];
+      $data = [];
+      if(is_array($invoices))
+      {
+        foreach($invoices as $key=>$invoice):
+          {
+            $invoiceRows = $invoiceRowCRUD->getInvoiceRowsByInvoiceAsArray($invoice['id']);
+            $paiedAmount = $paymentCRUD->getPaiedAmountByInvoice($invoice['id']);
+              foreach($invoiceRows as $invoiceRow):
+                {
+                  $tax = $taxCRUD->getTaxById($invoiceRow['tax'])[0];
+                  array_push($taxes, $tax);
+                }endforeach;
+        
+              $data[$key] = ['invoice'=>$invoice, 'paiedAmount'=>$paiedAmount, 'invoiceRows'=>$invoiceRows, 'taxes'=>$taxes];
+          }endforeach;
+          $recordsTotal = count($invoices);
+      }
+  }
+ 
   $invoices = [
-    "draw" => 1,
-    "recordsTotal" => $invoices?count($invoices):0,
-    "recordsFiltered" => $invoices?count($invoices):0,
-    "data" => $data??[]
+    "draw" => intval($_POST['draw']),
+    "recordsTotal" => $recordsTotal ?? 0,
+    "recordsFiltered" => $recordsTotal ?? 0,
+    "data" => $data ?? []
   ];
   exit(json_encode($invoices));
 }
@@ -722,39 +777,54 @@ if (isset($_POST['deletePaymentId']))
 
           <header class="panel-heading">
             <h3 class="panel-title">Invoice list</h3>
-            <div class="text-right" style="padding-right: 30px; margin-bottom: 20px">
-              <a href="new-invoice.php" class="btn btn-primary"><i class="white-600 wb wb-plus"></i> Create new invoice</a>
-            </div>
           </header>
           <div class="panel-body">
-            <table class="table table-hover dataTable table-striped w-full" id="dataTable">
+            <table class="table table-hover dataTable table-striped table-bordered w-full" id="dataTable">
               <thead>
                 <tr>
-                  <th>Id</th>
-                  <th>Quote</th>
                   <th>Ref</th>
+                  <th>Quote</th>
                   <th>Start date</th>
                   <th>End date</th>
-                  <th>Total</th>
-                  <th>Paied</th>
+                  <th class="sum">Total</th>
+                  <th class="sum">Paied</th>
+                  <th class="sum">Balance</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th width="10%">Actions</th>
                 </tr>
               </thead>
               <tfoot>
                 <tr>
-                  <th>Id</th>
-                  <th>Quote</th>
-                  <th>Ref</th>
-                  <th>Start date</th>
-                  <th>End date</th>
+                  <th>
+                    <input type="text" placeholder="Ref" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Quote" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="Start date" class="form-control form-control" style="border: none">
+                  </th>
+                  <th>
+                    <input type="text" placeholder="End date" class="form-control form-control" style="border: none">
+                  </th>
                   <th>Total</th>
                   <th>Paied</th>
-                  <th>Status</th>
+                  <th>Balance</th>
+                  <th>
+                    <input type="text" placeholder="Status" class="form-control form-control" style="border: none">
+                  </th>
                   <th>Actions</th>
+                </tr>
+                <tr>
+                  <th colspan="9">
+                    <input type="text" placeholder="Type to search the table" id="customGlobalSearch" class="form-control form-control" style="border: none">
+                  </th>
                 </tr>
               </tfoot>
             </table>
+            <div style="padding-right: 30px; margin-bottom: 20px">
+              <a href="new-invoice.php" class="btn btn-primary"><i class="white-600 wb wb-plus"></i> Create new invoice</a>
+            </div>
           </div>
         </div>
 
@@ -984,8 +1054,6 @@ if (isset($_POST['deletePaymentId']))
   </div>
 </div>
 
-
-
 <script src="template/global/vendor/babel-external-helpers/babel-external-helpers.js"></script>
 <script src="template/global/vendor/jquery/jquery.js"></script>
 <script src="template/global/vendor/tether/tether.js"></script>
@@ -996,6 +1064,7 @@ if (isset($_POST['deletePaymentId']))
 <script src="template/global/vendor/asscrollbar/jquery-asScrollbar.js"></script>
 <script src="template/global/vendor/asscrollable/jquery-asScrollable.js"></script>
 <script src="template/global/vendor/ashoverscroll/jquery-asHoverScroll.js"></script>
+
 <!-- Plugins -->
 <script src="template/global/vendor/switchery/switchery.min.js"></script>
 <script src="template/global/vendor/intro-js/intro.js"></script>
@@ -1017,7 +1086,9 @@ if (isset($_POST['deletePaymentId']))
 <script src="template/global/vendor/datatables.net-buttons/buttons.print.js"></script>
 <script src="template/global/vendor/datatables.net-buttons/buttons.colVis.js"></script>
 <script src="template/global/vendor/datatables.net-buttons-bs4/buttons.bootstrap4.js"></script>
-
+<script src="template/global/js/Plugin/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.1.36/build/vfs_fonts.js" integrity="sha256-wvH/UThD/fVD6sz1bAWX7JDW5Nx1TBdhegX8IHX20hA=" crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.16/b-1.5.1/b-colvis-1.5.1/b-html5-1.5.1/b-print-1.5.1/r-2.2.1/sl-1.2.5/datatables.min.js"></script>
 
 
 
@@ -1049,16 +1120,15 @@ Config.set('assets', 'template/base/assets');
 
 
 
-
 <script type="text/javascript" src="ajax/crud-invoice.js"></script>
 <script type="text/javascript" src="ajax/crud-payment.js"></script>
 <script type="text/javascript">
 $(document).ready(function () {
   function action(data, type, full, meta) {
+
+    
     var id = full.invoice.id;
-
-
-
+    
     var actions = '<a href="generate-pdf.php?type=invoice&id=' + id + '" target="_blank" class="dropdown-item action-item"  role="menuitem" style="width: auto; text-decoration: none">' +
     '<i class="fa fa-fw fa-eye"></i> View invoice</a>' +
     '<a href="update-invoice.php?id=' + id + '" class="dropdown-item action-item" role="menuitem" style="width: auto; text-decoration: none">' +
@@ -1073,7 +1143,7 @@ $(document).ready(function () {
     '<i class="fa fa-fw fa-trash"></i> Delete invoice</a>';
 
     var btnOptions = '<div class="dropdown">'+
-      '<button type="button" class="btn btn-default btn-outline dropdown-toggle" data-toggle="dropdown">Options</button>'+
+      '<button type="button" class="btn btn-default btn-sm btn-outline dropdown-toggle" data-toggle="dropdown">Options</button>'+
       '<div class="dropdown-menu">'+
         actions +
       '</div>'+
@@ -1083,37 +1153,81 @@ $(document).ready(function () {
     return btnOptions;
   }
 
-  $('#dataTable').DataTable(
+  var dataTable = $('#dataTable').DataTable(
     {
       "destroy": true,
       "order": [0, 'asc'],
-      "processing": true,
-      "serverSide": false,
+      "dom": '<"text-center"<"btn-group"B>><"clear"><"row"<"col-md-6"l><"col-md-6 pr0"p>r>t<"row"<"col-md-6"i><"col-md-6"p>><"clear">',
+      "buttons": [
+          { extend: 'copyHtml5', exportOptions: { columns: [ 0, 1, 2, 3, 4, 5, 6, 7 ] } },
+          { extend: 'excelHtml5', 'footer': true, exportOptions: { columns: [ 0, 1, 2, 3, 4, 5, 6, 7 ] } },
+          { extend: 'csvHtml5', 'footer': true, exportOptions: { columns: [ 0, 1, 2, 3, 4, 5, 6, 7 ] } },
+          { extend: 'pdfHtml5', orientation: 'landscape', pageSize: 'A4', 'footer': true, 
+          exportOptions: { columns: [ 0, 1, 2, 3, 4, 5, 6, 7 ] } },
+          { extend: 'colvis', text: 'Columns'},
+      ],
+      "pageLength": 10,
+      "processing": true, 
+      "serverSide": true,
       "ajax": {
         url: "<?php echo $_SERVER['PHP_SELF'] ?>?format=json",
-        type: "GET",
-        dataSrc: 'data'
+        type: "POST"
       },
       "columnDefs": [
-        {"orderable": true, "targets": 0}
+        {"orderable": true, "targets": 0},
+        {
+          "targets": 4,
+          "orderable": false,
+          "data": function ( row, type, val, meta ) {
+            var total = 0, tax, unityPrice, quantity, subtotal;
+            for(var i = 0; i < row.invoiceRows.length; i++)
+            {
+              tax = row.taxes[i].amount;
+              unityPrice =  row.invoiceRows[i].unityprice;
+              quantity =  row.invoiceRows[i].quantity;
+              subtotal = parseFloat(unityPrice) * parseInt(quantity);
+              tax = parseFloat((tax * subtotal)/100);
+              total += parseFloat(subtotal + tax);
+            }
+            return  total;
+          }
+        },
+        {
+          "targets": 5,
+          "orderable": false,
+          "data": function ( row, type, val, meta ) {
+            return (row.paiedAmount[0].paiedAmount?row.paiedAmount[0].paiedAmount:"0.00");
+          }
+        },
+        {
+          "targets": 6,
+          "orderable": false,
+          "data": function ( row, type, val, meta ) {
+            var total = 0, tax, unityPrice, quantity, subtotal;
+            for(var i = 0; i < row.invoiceRows.length; i++)
+            {
+              tax = row.taxes[i].amount;
+              unityPrice =  row.invoiceRows[i].unityprice;
+              quantity =  row.invoiceRows[i].quantity;
+              subtotal = parseFloat(unityPrice) * parseInt(quantity);
+              tax = parseFloat((tax * subtotal)/100);
+              total += parseFloat(subtotal + tax);
+            }
+            return (row.paiedAmount[0].paiedAmount?(total - row.paiedAmount[0].paiedAmount):total);
+          }
+        }
       ],
       "columns": [
         {
-          data: "id",
+          data: "ref",
           render: function ( data, type, row, meta ) {
-            return row.invoice.id;
+            return row.invoice.ref;
           }
         },
         {
           data: "quote",
           render: function ( data, type, row, meta ) {
             return row.invoice.quote;
-          }
-        },
-        {
-          data: "ref",
-          render: function ( data, type, row, meta ) {
-            return row.invoice.ref;
           }
         },
         {
@@ -1138,24 +1252,37 @@ $(document).ready(function () {
         },
         {
           render: function ( data, type, row, meta ) {
-            
             var total = 0, tax, unityPrice, quantity, subtotal;
-
             for(var i = 0; i < row.invoiceRows.length; i++)
             {
-              tax = row.invoiceRows[i].tax;
+              tax = row.taxes[i].amount;
               unityPrice =  row.invoiceRows[i].unityprice;
               quantity =  row.invoiceRows[i].quantity;
               subtotal = parseFloat(unityPrice) * parseInt(quantity);
               tax = parseFloat((tax * subtotal)/100);
               total += parseFloat(subtotal + tax);
             }
-            return  total;
+            return  total.toFixed(2);
           }
         },
         {
           render: function ( data, type, row, meta ) {
             return (row.paiedAmount[0].paiedAmount?row.paiedAmount[0].paiedAmount:"0.00");
+          }
+        },
+        {
+          render: function ( data, type, row, meta ) {
+            var total = 0, tax, unityPrice, quantity, subtotal;
+            for(var i = 0; i < row.invoiceRows.length; i++)
+            {
+              tax = row.taxes[i].amount;
+              unityPrice =  row.invoiceRows[i].unityprice;
+              quantity =  row.invoiceRows[i].quantity;
+              subtotal = parseFloat(unityPrice) * parseInt(quantity);
+              tax = parseFloat((tax * subtotal)/100);
+              total += parseFloat(subtotal + tax);
+            }
+            return (row.paiedAmount[0].paiedAmount?(total - row.paiedAmount[0].paiedAmount).toFixed(2):total.toFixed(2));
           }
         },
         {
@@ -1186,7 +1313,27 @@ $(document).ready(function () {
             return action(data, type, full, meta);
           }
         }
-      ]
+      ],
+      "footerCallback": function ( row, data, start, end, display ) {
+            var api = this.api(), data;
+            // Remove the formatting to get integer data for summation
+            var intVal = function ( i ) {
+                return typeof i === 'string' ?
+                    i.replace(/[\$,]/g, '')*1 :
+                    typeof i === 'number' ?
+                        i : 0;
+            };
+             
+            api.columns('.sum', { page: 'current'}).every( function () {
+              var sum = this
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+              
+              this.footer().innerHTML = sum.toFixed(2);
+            } );
+        }
     }
   );
 
@@ -1201,6 +1348,7 @@ $(document).ready(function () {
     $('#deleteModal').modal('toggle');
     var _action = "<?php echo ($_SERVER['PHP_SELF']) ?>";
     deleteInvoice($(this), _action);
+    dataTable.ajax.reload();
   });
 
 
@@ -1262,6 +1410,7 @@ $(document).ready(function () {
     var _action = "<?php echo ($_SERVER['PHP_SELF']) ?>";
     savePayment($(this), _action);
     resetPayment();
+    dataTable.ajax.reload();
   });
 
   $(document).on('click','[href="#listPaymentsModal"]', function(){
@@ -1282,6 +1431,26 @@ $(document).ready(function () {
     var _action = "<?php echo ($_SERVER['PHP_SELF']) ?>";
     deletePayment($(this), _action);
   });
+
+  $('#customGlobalSearch').on('keyup', function(){
+    dataTable.search( this.value ).draw();
+  });
+
+  dataTable.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+              dataTable
+                    .search( this.value )
+                    .draw();
+            }
+            else
+            {
+              dataTable.search('').draw();
+            }
+        } );
+    } );
 
 });
 </script>
